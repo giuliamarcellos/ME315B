@@ -1,0 +1,107 @@
+---
+title: "Lab02"
+format: html
+editor: visual
+---
+
+```{r}
+library(readr)
+library(dplyr)
+```
+
+1)Quais são as estatísticas suficientes para a determinação do percentual de vôos atrasados na chegada (ARRIVAL_DELAY \> 10)?
+
+RESPOSTA: percentual = voos atrasados/total de voos
+
+2)Crie uma função chamada getStats que, para um conjunto de qualquer tamanho de dados provenientes de flights.csv.zip, execute as seguintes tarefas (usando apenas verbos do dplyr):
+
+```{r}
+getStats <- function(input, pos) {
+  
+  input %>%
+    filter(
+      AIRLINE %in% c("AA", "DL", "UA", "US"),
+      !is.na(ARRIVAL_DELAY)
+    ) %>%
+    group_by(YEAR, MONTH, DAY, AIRLINE) %>%
+    summarise(
+      total = n(),
+      atrasados = sum(ARRIVAL_DELAY > 10),
+      .groups = "drop"
+    )
+  
+}
+```
+
+3)  
+
+```{r}
+callback <- DataFrameCallback$new(getStats)
+
+stats <- read_csv_chunked(
+  "C:/Users/giuli/Downloads/flights.csv/flights.csv",
+  callback = callback,
+  chunk_size = 100000,
+  col_types = cols_only(
+    YEAR = col_integer(),
+    MONTH = col_integer(),
+    DAY = col_integer(),
+    AIRLINE = col_character(),
+    ARRIVAL_DELAY = col_double()
+  )
+)
+names(stats)
+stats <- bind_rows(stats)
+```
+
+4)  
+
+```{r}
+
+computeStats <- function(stats) {
+  
+  stats %>% group_by(YEAR, MONTH, DAY, AIRLINE) %>%
+    summarise(total = sum(total), atrasados = sum(atrasados),.groups = "drop") %>%
+    mutate(Cia = AIRLINE, Data = as.Date(paste(YEAR, MONTH, DAY, sep = "-")),
+      
+      Perc = atrasados / total) %>%
+    select(Cia, Data, Perc)
+
+}
+stats <- computeStats(stats)
+names(stats)
+```
+
+5)  
+
+```{r}
+library(ggcal)
+library(ggplot2)
+
+paleta <- scale_fill_gradient(low = "#4575b4", high = "#d73027")
+
+baseCalendario <- function(stats, cia) {
+  
+  dados <- stats %>% filter(Cia == cia)
+  
+  ggcal(dados$Data, dados$Perc)
+}
+
+cAA <- baseCalendario(stats, "AA")
+
+cDL <- baseCalendario(stats, "DL")
+
+cUA <- baseCalendario(stats, "UA")
+
+cUS <- baseCalendario(stats, "US")
+
+cAA + paleta + ggtitle("Percentual de atrasos - AA")
+cDL + paleta + ggtitle("Delta Airlines")
+cUA + paleta + ggtitle("United Airlines")
+cUS + paleta + ggtitle("US Airways")
+```
+
+```{r}
+Sys.setenv(TZ = "America/Sao_Paulo")
+Sys.time()
+```
