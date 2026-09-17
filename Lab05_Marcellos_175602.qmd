@@ -1,0 +1,120 @@
+---
+title: "Lab05"
+author: "Giulia Marcellos"
+format: html
+editor: visual
+---
+
+leitura dos pacotes
+```{r}
+library(tidyverse)
+library(leaflet)
+library(readr)
+```
+
+leitura do banco de dados flights
+```{r}
+analise_aeronave <- function(tail_number) {
+  
+  dados_aeronave <- list()
+  
+  teste <- function(data, pos) {
+    
+    bloco <- data %>%
+      filter(TAIL_NUMBER == tail_number)
+    
+    if (nrow(bloco) > 0) {
+      dados_aeronave[[length(dados_aeronave) + 1]] <<- bloco
+    }
+  }
+  
+  read_csv_chunked(
+    file.path("dados", "flights.csv"),
+    callback = DataFrameCallback$new(teste),
+    chunk_size = 100000
+  )
+  
+  dados_aeronave <- bind_rows(dados_aeronave)
+  
+  return(dados_aeronave)
+}
+
+```
+
+```{r}
+dados_aeronave <- analise_aeronave("N431WN")
+```
+
+filtrar 
+```{r}
+dados_aeronave <- dados_aeronave %>%
+    arrange(YEAR, MONTH, DAY, DEPARTURE_TIME)
+```
+
+leitura do banco de dados airport
+```{r}
+airports <- read_csv(file.path("dados", "airports.csv"))
+names(airports)
+```
+
+
+juntar as coordenadas de origem
+```{r}
+dados_geo <- dados_aeronave %>% left_join(airports %>% select(IATA_CODE, LATITUDE, LONGITUDE) %>% rename(ORIGIN_LAT = LATITUDE, ORIGIN_LON = LONGITUDE), by = c("ORIGIN_AIRPORT" = "IATA_CODE"))
+
+dados_geo <- dados_geo %>% left_join(airports %>% select(IATA_CODE, LATITUDE, LONGITUDE) %>% rename(DESTINATION_LAT = LATITUDE, DESTINATION_LON = LONGITUDE), by = c("DESTINATION_AIRPORT" = "IATA_CODE"))
+```
+
+calcular velocidade média
+```{r}
+dados_geo <- dados_geo %>% mutate(velocidade_media = if_else(!is.na(AIR_TIME) & AIR_TIME>0, DISTANCE/(AIR_TIME/60), NA_real_))
+```
+
+criar mapa interativo
+```{r}
+mapa <- leaflet() %>%
+    addTiles()
+  
+  mapa <- mapa %>%
+    addCircleMarkers(
+      lng = dados_geo$ORIGIN_LON,
+      lat = dados_geo$ORIGIN_LAT,
+      popup = dados_geo$ORIGIN_AIRPORT,
+      radius = 5
+    )
+  
+  for (i in 1:nrow(dados_geo)) {
+    
+    mapa <- mapa %>%
+      addPolylines(
+        lng = c(
+          dados_geo$ORIGIN_LON[i],
+          dados_geo$DESTINATION_LON[i]
+        ),
+        lat = c(
+          dados_geo$ORIGIN_LAT[i],
+          dados_geo$DESTINATION_LAT[i]
+        ),
+        weight = dados_geo$velocidade_media[i] / 50,
+        popup = paste(
+          "Origem:", dados_geo$ORIGIN_AIRPORT[i],
+          "<br>Destino:", dados_geo$DESTINATION_AIRPORT[i],
+          "<br>Velocidade média:",
+          round(dados_geo$velocidade_media[i], 1),
+          "mph"
+        )
+      )
+  }
+  
+  list(
+    tabela = dados_geo,
+    mapa = mapa
+  )
+
+```
+
+```{r}
+Sys.setenv(TZ = "America/Sao_Paulo")
+Sys.time()
+```
+
