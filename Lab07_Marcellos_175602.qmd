@@ -1,0 +1,123 @@
+---
+title: "Lab07"
+format: html
+editor: visual
+---
+
+Baixe o arquivo uwmadison.sqlite3. Conecte-se a ele usando o pacote RSQLite, armazenando a conexão em uma variável conn.
+```{r}
+library(RSQLite)
+
+con <- dbConnect(SQLite(), "database.sqlite3")
+```
+
+Quem são e quantos são os professores que lecionaram disciplinas cujo tópico era estatística (subjects.abbreviation='STAT');
+
+```{sql connection=con}
+SELECT DISTINCT i.name AS professor
+FROM instructors AS i
+JOIN teachings AS t
+ON i.id = t.instructor_id
+JOIN sections AS s
+ON s.uuid = t.section_uuid
+JOIN subject_memberships AS sm
+ON sm.course_offering_uuid = s.course_offering_uuid
+JOIN subjects AS sub
+ON sub.code = sm.subject_code
+WHERE sub.abbreviation = 'STAT'
+ORDER BY i.name;
+```
+
+
+O GPA americano é definido numa escala de 0 a 4, em que A = 4, AB = 3.5, B = 3, BC = 2.5, C = 2, D = 1 e F = 0. Determinando a nota média de cada oferecimento pela ponderação da quantidade de alunos em cada extrato com os valores numéricos de cada conceito, indique (no que se referente a disciplinas no assunto de estatística):
+```{sql connection=con}
+SELECT gd.course_offering_uuid, gd.section_number,
+(4.0 * CAST(gd.a_count AS REAL) + 3.5 * CAST(gd.ab_count AS REAL) +
+3.0 * CAST(gd.b_count AS REAL) + 2.5 * CAST(gd.bc_count AS REAL) + 2.0 * CAST(gd.c_count AS REAL) + 1.0 * CAST(gd.d_count AS REAL))/
+(CAST(gd.a_count AS REAL) + CAST(gd.ab_count AS REAL) + CAST(gd.b_count AS REAL) + CAST(gd.bc_count AS REAL) + CAST(gd.c_count AS REAL) + CAST(gd.d_count AS REAL) + CAST(gd.f_count AS REAL)) AS GPA
+
+FROM grade_distributions AS gd
+
+WHERE CAST(gd.a_count AS REAL) + CAST(gd.ab_count AS REAL) + CAST(gd.b_count AS REAL) + CAST(gd.bc_count AS REAL) + CAST(gd.c_count AS REAL) + CAST(gd.d_count AS REAL) + CAST(gd.f_count AS REAL) > 0;
+```
+
+
+Quem é o professor mais difícil?
+```{sql connection=con}
+SELECT i.name AS professor, 
+AVG((4.0 * CAST(gd.a_count AS REAL) + 3.5 * CAST(gd.ab_count AS REAL) + 3.0 * CAST(gd.b_count AS REAL) + 2.5 * CAST(gd.bc_count AS REAL) + 2.0 * CAST(gd.c_count AS REAL) + 1.0 * CAST(gd.d_count AS REAL))/
+(CAST(gd.a_count AS REAL) + CAST(gd.ab_count AS REAL) + CAST(gd.b_count AS REAL) + CAST(gd.bc_count AS REAL) + CAST(gd.c_count AS REAL) + CAST(gd.d_count AS REAL) + CAST(gd.f_count AS REAL))) AS GPA
+
+FROM instructors AS i
+JOIN teachings AS t
+    ON i.id = t.instructor_id
+JOIN sections AS s
+    ON s.uuid = t.section_uuid
+JOIN subject_memberships AS sm
+    ON sm.course_offering_uuid = s.course_offering_uuid
+JOIN subjects AS sub
+    ON sub.code = sm.subject_code
+JOIN grade_distributions AS gd
+    ON gd.course_offering_uuid = s.course_offering_uuid
+    AND gd.section_number = s.number
+
+WHERE sub.abbreviation = 'STAT'
+GROUP BY i.id, i.name
+ORDER BY GPA
+LIMIT 1;
+```
+
+Quem é o professor mais fácil?
+```{sql connection=con}
+SELECT i.name AS professor, 
+AVG((4.0 * CAST(gd.a_count AS REAL) + 3.5 * CAST(gd.ab_count AS REAL) + 3.0 * CAST(gd.b_count AS REAL) + 2.5 * CAST(gd.bc_count AS REAL) + 2.0 * CAST(gd.c_count AS REAL) + 1.0 * CAST(gd.d_count AS REAL))/
+(CAST(gd.a_count AS REAL) + CAST(gd.ab_count AS REAL) + CAST(gd.b_count AS REAL) + CAST(gd.bc_count AS REAL) + CAST(gd.c_count AS REAL) + CAST(gd.d_count AS REAL) + CAST(gd.f_count AS REAL))) AS GPA
+
+FROM instructors AS i
+JOIN teachings AS t
+    ON i.id = t.instructor_id
+JOIN sections AS s
+    ON s.uuid = t.section_uuid
+JOIN subject_memberships AS sm
+    ON sm.course_offering_uuid = s.course_offering_uuid
+JOIN subjects AS sub
+    ON sub.code = sm.subject_code
+JOIN grade_distributions AS gd
+    ON gd.course_offering_uuid = s.course_offering_uuid
+    AND gd.section_number = s.number
+
+WHERE sub.abbreviation = 'STAT'
+GROUP BY i.id, i.name
+ORDER BY GPA DESC
+LIMIT 1;
+```
+
+Qual é a disciplina mais difícil e mais fácil
+```{sql connection=con}
+SELECT sub.abbreviation AS assunto, c.number AS disciplina,c.name AS nome,
+AVG((4.0 * CAST(gd.a_count AS REAL) + 3.5 * CAST(gd.ab_count AS REAL) + 3.0 * CAST(gd.b_count AS REAL) + 2.5 * CAST(gd.bc_count AS REAL) + 2.0 * CAST(gd.c_count AS REAL) + 1.0 * CAST(gd.d_count AS REAL))/
+(CAST(gd.a_count AS REAL) + CAST(gd.ab_count AS REAL) + CAST(gd.b_count AS REAL) + CAST(gd.bc_count AS REAL) + CAST(gd.c_count AS REAL) + CAST(gd.d_count AS REAL) + CAST(gd.f_count AS REAL))) AS GPA
+
+FROM subjects AS sub
+JOIN subject_memberships AS sm
+    ON sub.code = sm.subject_code
+JOIN course_offerings AS co
+    ON co.uuid = sm.course_offering_uuid
+JOIN courses AS c
+    ON c.uuid = co.course_uuid
+JOIN grade_distributions AS gd
+    ON gd.course_offering_uuid = co.uuid
+WHERE sub.abbreviation = 'STAT'
+GROUP BY c.uuid, c.number, c.name
+ORDER BY GPA;
+```
+
+```{r}
+dbDisconnect(con)
+```
+
+```{r}
+Sys.setenv(TZ = "America/Sao_Paulo")
+Sys.time()
+```
+
