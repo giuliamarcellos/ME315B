@@ -1,0 +1,61 @@
+---
+title: "Lab 09"
+author: "Giulia Marcellos"
+format: html
+editor: visual
+---
+instalação do python
+```{r}
+library(reticulate)
+
+```
+
+
+```{r}
+reticulate::py_require(c("pandas", "plotnine"))
+```
+
+1.Importe o conjunto de dados diamonds, cujo arquivo está disponível no website da disciplina.
+```{python}
+import pandas as pd
+from plotnine.data import diamonds
+
+print(pd.__version__)
+print(diamonds.head())
+```
+obs: o banco de dados disponibilizado no site não estava abrindo no meu computador de maneira nenhuma, por isso utilizei o da biblioteca!
+
+2.Crie uma visualização de dados que descreva a associação existente entre as variáveis peso (carat) e preço (price). Que ações você tomou para garantir que você produziu um gráfico de boa qualidade? Escreva um parágrafo comunicando os seus achados.
+```{python}
+from plotnine import (ggplot, aes, geom_point, labs, theme_minimal, theme)
+
+grafico_disp = (ggplot(diamonds, aes(x = "carat", y = "price")) + geom_point(alpha = 0.25, size = 1.2) + labs(title = "Relação Peso x Preço", x = "Peso em quilates", y = "Preço em dólares") + theme_minimal() + theme(figure_size = (10,6)))
+
+print(grafico_disp)
+```
+
+O gráfico nos mostra uma relação positiva entra o peso dos diamantes e o valor atribuido a ele, ou seja, quanto mais pesado o diamente é, mais caro ele fica. Podemos observar também uma dispersão entre diamantes com pesos parecidos, o que pode indicar que outas carecteristicas, como corte, cor e pureza, também influenciam no valor final dado ao diamente. O gráfico foi produzido com títulos indicativos, transparência dos pontos para melhor vizualização de sobreposições e um tema minimalista, facilitar a interpretação dos dados.
+
+
+3.A relação identificada na questão anterior é a mesma relação presente nos diferentes cortes de diamantes? Crie uma visualização que demonstre seus achados eficientemente. Descreva sua conclusão em um parágrafo.
+```{python}
+from plotnine import(ggplot, aes, geom_point, labs, facet_wrap, theme_minimal, theme)
+
+grafico_disp2 = (ggplot(diamonds, aes(x = "carat", y = "price")) + geom_point(alpha = 0.2, size = 0.8) + facet_wrap("~cut", ncol = 2) + labs(title = "Relação Peso x Preço por corte", x = "Peso em quilates", y = "Preço em dólares") + theme_minimal() + theme(figure_size = (10,8)))
+
+print(grafico_disp2)
+```
+
+O gráfico mostra que a relação entre peso e preço continua positiva, mesmo nos diferentes cortes de diamente, ou seja, os diamentes com maior peso continuam sendo mais caros em todos os grupos. Porém, a dispersão varia entre os cortes, o que nos indica que apesar da termos uma relação sempre positiva, ela não é identica para todos os grupos. Desse modo, mesmo que a variação de preço seja positiva em relaçao ao peso dos diamentes com diferentes cortes, outras caracteristicas também podem influeciar as diferenças observadas.
+
+
+4.Crie uma visualização que mostre a relação entre preço e peso do diamante, considerando as diferentes combinações de qualidade de corte, cor e clareza do diamante. Quais foram as dificuldades encontradas? A relação entre preço e peso é a mesma para diferentes configurações de diamantes?
+```{python}
+from plotnine import(ggplot, aes, geom_point, labs, facet_grid, theme_minimal, theme)
+
+conjunto_graficos = (ggplot(diamonds, aes(x = "carat", y = "price" , color = "clarity")) + geom_point(alpha = 0.35, size = 0.6) + facet_grid("cut ~ color") + labs(title = "Relação Peso x Preço por características dos diamantes", x = "Peso em quilates", y = "Preço em dólares", color = "Clareza") + theme_minimal() + theme(figure_size = (16,10), legend_position = "bottom"))
+
+print(conjunto_graficos)
+```
+
+Os gráficos nos mostram a relação entre o peso e o preço dos diamantes considerando diferentes combinações de corte, cor e clareza. A maior dificuldade fica em representar todas as categorias de maneira clara e eficiente devida a grande quantidade de possibilidades nas combinações. Em geral, é esperado que a associação entre peso e preço continue positiva, como nas duas observações anteriores, porém, ao adicionarmos mais caracteristicas aos diamantes, as relações começam a apresentar variações de preço para diamantes com pesos parecidos.Desse modo, conseguimos analisar que o peso do diamante influência no preço fianl, porém não é o único fator envolvido.
